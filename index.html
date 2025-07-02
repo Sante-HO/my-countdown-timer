@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>脱出ゲーム カウントダウンタイマー</title>
+    <!-- Tailwind CSS CDNを読み込む -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Google Fonts - Inter を読み込む */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-gray-100 p-4">
+    <!-- タイトル -->
+    <h1 class="text-4xl md:text-5xl font-bold mb-8 text-indigo-300 text-center drop-shadow-lg">カウントダウンタイマー</h1>
+
+    <!-- タイマー表示エリア -->
+    <div id="timer" class="text-6xl md:text-8xl font-extrabold text-green-400 bg-gray-800 p-8 md:p-12 rounded-2xl shadow-2xl border-4 border-gray-700 transition-colors duration-500 ease-in-out text-center w-full max-w-md">
+        <!-- JavaScriptによってここに時間が表示されます -->
+        00:00:00
+    </div>
+
+    <!-- 共有ボタンとメッセージエリア -->
+    <div class="mt-8 flex flex-col items-center space-y-4">
+        <button id="shareButton" class="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+            タイマーを共有
+        </button>
+        <div id="shareMessage" class="text-green-400 text-lg opacity-0 transition-opacity duration-300">
+            <!-- 共有成功時のメッセージが表示されます -->
+        </div>
+    </div>
+
+    <script>
+        // 初期設定
+        // URLから'time'パラメータを取得。存在しない場合は1時間（3600秒）をデフォルトとする。
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialTimeFromUrl = parseInt(urlParams.get('time'), 10);
+        const initialTimeInSeconds = isNaN(initialTimeFromUrl) ? 60 * 60 : initialTimeFromUrl; // 1時間 = 3600秒
+        
+        let timeLeft = initialTimeInSeconds;
+        const timerDisplay = document.getElementById('timer');
+        const shareButton = document.getElementById('shareButton');
+        const shareMessage = document.getElementById('shareMessage');
+
+        // タイマーを更新する関数
+        function updateTimer() {
+            // 残り秒数を時間、分、秒に変換
+            const hours = Math.floor(timeLeft / 3600);
+            const minutes = Math.floor((timeLeft % 3600) / 60);
+            const seconds = timeLeft % 60;
+
+            // 表示を「HH:MM:SS」形式に整形（一桁の場合は前に0を追加）
+            const displayHours = String(hours).padStart(2, '0');
+            const displayMinutes = String(minutes).padStart(2, '0');
+            const displaySeconds = String(seconds).padStart(2, '0');
+
+            // タイマー表示を更新
+            timerDisplay.textContent = `${displayHours}:${displayMinutes}:${displaySeconds}`;
+
+            // 残り時間に応じてタイマーの見た目を変更
+            // Tailwind CSSクラスを動的に追加・削除
+            if (timeLeft <= 10) { // 残り10秒以下で赤色
+                timerDisplay.classList.remove('text-green-400', 'text-yellow-400', 'border-green-400', 'border-yellow-400', 'border-gray-700');
+                timerDisplay.classList.add('text-red-400', 'border-red-400');
+            } else if (timeLeft <= 60) { // 残り1分（60秒）以下で黄色
+                timerDisplay.classList.remove('text-green-400', 'text-red-400', 'border-green-400', 'border-red-400', 'border-gray-700');
+                timerDisplay.classList.add('text-yellow-400', 'border-yellow-400');
+            } else { // それ以外（初期状態）は緑色
+                timerDisplay.classList.remove('text-yellow-400', 'text-red-400', 'border-yellow-400', 'border-red-400');
+                timerDisplay.classList.add('text-green-400', 'border-green-400');
+                // 初期ボーダー色に戻す
+                if (!timerDisplay.classList.contains('border-gray-700')) {
+                    timerDisplay.classList.add('border-gray-700');
+                }
+            }
+
+            // 時間が0以下になった場合の処理
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval); // タイマーの更新を停止
+                timerDisplay.textContent = 'タイムアップ！'; // 表示を「タイムアップ！」に変更
+                // タイムアップ後も赤色を維持
+                timerDisplay.classList.remove('text-green-400', 'text-yellow-400', 'border-green-400', 'border-yellow-400', 'border-gray-700');
+                timerDisplay.classList.add('text-red-400', 'border-red-400');
+                // ここにゲームオーバーなどの追加処理を記述できます
+                shareButton.disabled = true; // タイムアップしたら共有ボタンを無効化
+            } else {
+                timeLeft--; // 残り時間を1秒減らす
+            }
+        }
+
+        // 共有ボタンのクリックイベントリスナー
+        shareButton.addEventListener('click', () => {
+            // 現在の残り時間をパラメータとして含むURLを生成
+            const shareUrl = `${window.location.origin}${window.location.pathname}?time=${timeLeft}`;
+            
+            // クリップボードにコピー
+            const tempInput = document.createElement('textarea');
+            tempInput.value = shareUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            // 共有成功メッセージを表示
+            shareMessage.textContent = 'URLをクリップボードにコピーしました！';
+            shareMessage.classList.remove('opacity-0');
+            shareMessage.classList.add('opacity-100');
+
+            // 3秒後にメッセージを非表示にする
+            setTimeout(() => {
+                shareMessage.classList.remove('opacity-100');
+                shareMessage.classList.add('opacity-0');
+            }, 3000);
+        });
+
+        // 1秒ごとにupdateTimer関数を呼び出すインターバルを設定
+        const timerInterval = setInterval(updateTimer, 1000);
+
+        // ページロード時にタイマーを初回更新
+        // これにより、ページが表示された瞬間に正しい残り時間が表示されます
+        updateTimer();
+    </script>
+</body>
+</html>
